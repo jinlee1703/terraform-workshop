@@ -2,7 +2,6 @@ data "aws_region" "current" {}
 
 locals {
   common_tags = {
-    "ManagedBy" = "Terraform"
     "Region" = data.aws_region.current.name
   }
 }
@@ -17,6 +16,10 @@ resource "aws_vpc" "jinwoo" {
       Name = var.vpc_name
     }
   )
+
+  lifecycle {
+    create_before_destroy = true
+  }
 }
 
 locals {
@@ -37,7 +40,14 @@ resource "aws_subnet" "public" {
 
   tags = merge(var.tags, {
     Name = "${var.vpc_name}-public-${each.key }"
+    Hello = "What"
   })
+
+  lifecycle {
+    ignore_changes = [
+      tags,
+    ]
+  }
 }
 
 locals {
@@ -67,4 +77,48 @@ resource "aws_subnet" "private" {
   tags = merge(var.tags, {
     Name = each.key
   })
+}
+
+resource "random_pet" "server" {
+  length = 3
+}
+
+resource "time_rotating" "example" {
+  rotation_minutes = 1
+}
+
+resource "time_static" "rotate" {
+  rfc3339 = time_rotating.example.rfc3339
+}
+
+resource "aws_eip" "this" {
+  domain = "vpc"
+  # provider = aws.verginia
+
+  depends_on = [
+    aws_subnet.public["10.0.0.0/24"]
+  ]
+
+  lifecycle {
+    prevent_destroy = false
+    replace_triggered_by = [
+      # aws_vpc.jinwoo,
+      # time_static.rotate
+    ]
+  }
+}
+
+locals {
+  vpcs = ["hello", "world"]
+}
+
+module "vpc" {
+  source = "tedilabs/network/aws//modules/vpc"
+  version = "0.28.0"
+
+  count = length(local.vpcs)
+  name = local.vpcs[count.index]
+
+  dhcp_options_enabled = true
+  vpn_gateway_enabled = true
 }

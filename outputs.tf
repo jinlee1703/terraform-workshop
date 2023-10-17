@@ -10,3 +10,7 @@ output "common_tags" {
 output "region" {
   value = data.aws_region.current.name
 }
+
+output "module_vpc" {
+  value = module.vpc
+}
